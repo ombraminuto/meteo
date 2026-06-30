@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Meteo Perfetto">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='49' fill='%23ffffff'/><polygon points='50,6 57,43 94,50 57,57 50,94 43,57 6,50 43,43' fill='%230a4bff'/><polygon points='50,43 74,26 57,50 74,74 50,57 26,74 43,50 26,26' fill='%236ea0ff'/><circle cx='50' cy='50' r='6' fill='%230a2fb0'/></svg>">
+<title>Meteo Perfetto — Consenso multi-modello</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --bg:#0b1220; --bg2:#111a2e; --card:#16223c; --card2:#1d2c4d;
+    --txt:#eaf1ff; --mut:#9fb0d0; --acc:#4cc2ff; --acc2:#6ee7b7;
+    --warn:#ffcf5c; --bad:#ff7a7a; --line:#26365c; --good:#6ee7b7;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 700px at 70% -10%,#1b2a4d 0,var(--bg) 55%) fixed;
+    color:var(--txt); min-height:100vh; padding:16px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1000px;margin:0 auto}
+  header.app{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .logo{font-size:26px}
+  h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.2px}
+  .sub{color:var(--mut);font-size:12px;margin-top:2px}
+  .searchbar{display:flex;gap:8px;flex:1;min-width:240px;justify-content:flex-end;flex-wrap:wrap}
+  input[type=text]{
+    background:var(--card);border:1px solid var(--line);color:var(--txt);
+    padding:10px 12px;border-radius:12px;font-size:14px;min-width:180px;outline:none}
+  input[type=text]:focus{border-color:var(--acc)}
+  button{
+    background:var(--card2);color:var(--txt);border:1px solid var(--line);
+    padding:10px 14px;border-radius:12px;font-size:14px;cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--acc)}
+  button.primary{background:linear-gradient(135deg,var(--acc),#2b8bd6);border:0;color:#06121f;font-weight:700}
+  .suggest{position:relative}
+  .suglist{position:absolute;top:46px;right:0;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;z-index:1200;min-width:260px;box-shadow:var(--shadow);display:none}
+  .suglist div{padding:10px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--line)}
+  .suglist div:hover{background:var(--card2)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);margin-bottom:16px}
+  .now{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .now .ic{font-size:64px;line-height:1}
+  .now .temp{font-size:54px;font-weight:800;line-height:1}
+  .now .cond{font-size:16px;color:var(--mut)}
+  .now .meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px}
+  .pill{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;min-width:96px}
+  .pill b{display:block;font-size:16px;margin-top:2px}
+  .conf{margin-left:auto;text-align:right}
+  .badge{display:inline-block;padding:6px 12px;border-radius:999px;font-weight:700;font-size:13px}
+  .b-high{background:rgba(110,231,183,.16);color:var(--good);border:1px solid rgba(110,231,183,.4)}
+  .b-med{background:rgba(255,207,92,.16);color:var(--warn);border:1px solid rgba(255,207,92,.4)}
+  .b-low{background:rgba(255,122,122,.16);color:var(--bad);border:1px solid rgba(255,122,122,.4)}
+  h2.sec{font-size:14px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);margin:6px 2px 10px}
+  .hours{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+  .hcell{flex:0 0 auto;width:84px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+    padding:10px 8px;text-align:center}
+  .hcell .h{font-size:12px;color:var(--mut)}
+  .hcell .e{font-size:24px;margin:4px 0}
+  .hcell .t{font-size:18px;font-weight:700}
+  .hcell .w{font-size:11px;color:var(--mut);margin-top:6px}
+  .arrow{display:inline-block;font-size:14px}
+  .hcell .rain{font-size:11px;color:var(--acc)}
+  .days{display:flex;flex-direction:column;gap:8px}
+  .day{display:grid;grid-template-columns:130px 50px 1fr auto;gap:10px;align-items:center;
+    background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;transition:.15s}
+  .day:hover{border-color:var(--acc)}
+  .day.active{border-color:var(--acc);background:var(--card2)}
+  .day .dn{font-weight:700}
+  .day .dd{font-size:12px;color:var(--mut)}
+  .day .de{font-size:26px;text-align:center}
+  .day .range{display:flex;align-items:center;gap:8px}
+  .bar{height:6px;border-radius:6px;background:linear-gradient(90deg,#4cc2ff,#6ee7b7,#ffcf5c,#ff7a7a);flex:1;opacity:.5;position:relative}
+  .tmin{color:var(--acc)}.tmax{font-weight:700}
+  .day .wind{font-size:12px;color:var(--mut);text-align:right;min-width:120px}
+  .day .wind b{color:var(--txt)}
+  table.cmp{width:100%;border-collapse:collapse;font-size:13px}
+  table.cmp th,table.cmp td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:center}
+  table.cmp th{color:var(--mut);font-weight:600;text-align:left}
+  table.cmp td:first-child,table.cmp th:first-child{text-align:left}
+  .cons{color:var(--acc2);font-weight:800}
+  .muted{color:var(--mut)}
+  .loader{text-align:center;padding:40px;color:var(--mut)}
+  .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;
+    animation:sp 1s linear infinite;margin:0 auto 14px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .err{background:rgba(255,122,122,.12);border:1px solid var(--bad);color:#ffd9d9;padding:14px;border-radius:12px}
+  .foot{color:var(--mut);font-size:12px;text-align:center;margin:18px 0 4px}
+  .toggle{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .toggle label{font-size:12px;background:var(--bg2);border:1px solid var(--line);padding:6px 10px;border-radius:999px;cursor:pointer;user-select:none}
+  .toggle input{margin-right:6px;vertical-align:middle}
+  @media(max-width:560px){
+    .day{grid-template-columns:96px 40px 1fr;}
+    .day .wind{grid-column:1/-1;text-align:left;border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+    .now .temp{font-size:46px}.now .ic{font-size:52px}
+  }
+  .lock{position:fixed;inset:0;background:radial-gradient(1200px 700px at 50% 0,#1b2a4d,#0b1220);
+    display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+  .lockbox{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:30px 26px;max-width:360px;width:100%;text-align:center;box-shadow:var(--shadow)}
+  .lockbox .lglogo{margin:0 auto 8px;border-radius:50%;box-shadow:0 6px 18px rgba(10,75,255,.4)}
+  .lockbox .lglock{margin:0 auto;opacity:.92}
+  .lockbox h2{margin:10px 0 4px;font-size:20px}
+  .lockbox p{color:var(--mut);font-size:13px;margin:0 0 18px}
+  .lockbox input{width:100%;text-align:center;letter-spacing:3px;margin-bottom:12px}
+  .lockbox button{width:100%}
+  .rem{display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:var(--mut);margin-bottom:14px;cursor:pointer}
+  .rem input{width:auto;margin:0;letter-spacing:0}
+  .lockerr{color:var(--bad);font-size:13px;min-height:18px;margin-top:10px}
+  .logo svg{display:block;border-radius:50%;box-shadow:0 4px 14px rgba(10,75,255,.35)}
+  #map{height:220px;width:100%;border-radius:18px;border:1px solid var(--line);margin-bottom:16px;display:none;box-shadow:var(--shadow)}
+  .leaflet-container{background:#0b1220;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="lock" id="lock">
+  <div class="lockbox">
+    <svg class="lglogo" viewBox="0 0 100 100" width="58" height="58" xmlns="http://www.w3.org/2000/svg" aria-label="Rosa dei venti"><circle cx="50" cy="50" r="49" fill="#ffffff"/><polygon points="50,6 57,43 94,50 57,57 50,94 43,57 6,50 43,43" fill="#0a4bff"/><polygon points="50,43 74,26 57,50 74,74 50,57 26,74 43,50 26,26" fill="#6ea0ff"/><circle cx="50" cy="50" r="6" fill="#0a2fb0"/></svg>
+    <svg class="lglock" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10.5" rx="2.5"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>
+    <h2>Meteo Perfetto</h2>
+    <p>Inserisci la password per accedere</p>
+    <input type="password" id="pw" placeholder="Password" autocomplete="off" autocapitalize="characters">
+    <label class="rem"><input type="checkbox" id="rem"> Ricorda la password su questo dispositivo</label>
+    <button class="primary" id="pwBtn">Entra</button>
+    <div class="lockerr" id="pwErr"></div>
+  </div>
+</div>
+<div class="wrap">
+  <header class="app">
+    <div class="logo"><svg viewBox="0 0 100 100" width="38" height="38" xmlns="http://www.w3.org/2000/svg" aria-label="Rosa dei venti"><circle cx="50" cy="50" r="49" fill="#ffffff"/><polygon points="50,6 57,43 94,50 57,57 50,94 43,57 6,50 43,43" fill="#0a4bff"/><polygon points="50,43 74,26 57,50 74,74 50,57 26,74 43,50 26,26" fill="#6ea0ff"/><circle cx="50" cy="50" r="6" fill="#0a2fb0"/></svg></div>
+    <div>
+      <h1>Meteo Perfetto</h1>
+      <div class="sub">Consenso di più modelli per la previsione più precisa · vento in nodi</div>
+    </div>
+    <div class="searchbar">
+      <button class="primary" id="geoBtn" title="Usa la mia posizione"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="vertical-align:-2px;margin-right:5px"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>Posizione</button>
+      <div class="suggest">
+        <input type="text" id="q" placeholder="Cerca città…" autocomplete="off">
+        <div class="suglist" id="sug"></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="toggle" id="favs" style="margin-bottom:14px">
+    <label style="background:var(--card2);font-weight:700" data-lat="44.0807" data-lon="12.5276" data-nm="Viserba (Rimini)">⭐ Viserba (Rimini)</label>
+    <label data-lat="44.0594" data-lon="12.5683" data-nm="Rimini">Rimini</label>
+    <label data-lat="41.9028" data-lon="12.4964" data-nm="Roma">Roma</label>
+    <label data-lat="45.4642" data-lon="9.19" data-nm="Milano">Milano</label>
+    <label data-lat="44.4949" data-lon="11.3426" data-nm="Bologna">Bologna</label>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="content">
+    <div class="loader"><div class="spin"></div>Avvio in corso…</div>
+  </div>
+
+  <div class="foot">
+    Dati: Open-Meteo (modelli ECMWF · GFS/NOAA · ICON/DWD · GEM/Canada · Météo-France · JMA).
+    La previsione "perfetta" è il consenso (media) dei modelli; l'affidabilità indica quanto i modelli concordano.
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ---- Tutti i modelli meteo mondiali disponibili (confrontati internamente) ----
+const MODELS = [
+  {id:"ecmwf_ifs025"}, {id:"gfs_seamless"}, {id:"icon_seamless"},
+  {id:"gem_seamless"}, {id:"meteofrance_seamless"}, {id:"jma_seamless"},
+  {id:"metno_seamless"}, {id:"ukmo_seamless"}, {id:"knmi_seamless"},
+  {id:"dmi_seamless"}, {id:"bom_access_global"}, {id:"cma_grapes_global"},
+  {id:"gfs_graphcast025"}, {id:"italia_meteo_arpae_icon_2i"}
+];
+
+const HOURLY = ["temperature_2m","apparent_temperature","relative_humidity_2m","precipitation","precipitation_probability","weather_code","wind_speed_10m","wind_direction_10m","wind_gusts_10m"];
+const DAILY  = ["weather_code","temperature_2m_max","temperature_2m_min","precipitation_sum","precipitation_probability_max","wind_speed_10m_max","wind_gusts_10m_max","wind_direction_10m_dominant","sunrise","sunset"];
+
+// prende il primo valore disponibile tra i modelli (per alba/tramonto, uguali per tutti)
+function firstOf(block, baseVar, i){
+  for(const id of STATE.enabled){ const a=block[`${baseVar}_${id}`]; if(a&&a[i]!=null) return a[i]; }
+  return null;
+}
+const hhmm = iso=> iso? new Date(iso).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : "—";
+
+let STATE = {lat:null, lon:null, place:"", enabled:new Set(MODELS.map(m=>m.id)), data:null, selDay:0};
+
+// ---- Util ----
+const $ = s=>document.querySelector(s);
+const compass = d=>{const dirs=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSO","SO","OSO","O","ONO","NO","NNO"];return dirs[Math.round(((d%360)/22.5))%16];};
+const fromTxt = d=>"da "+compass(d);
+function wmo(code){
+  const m={0:["Sereno","☀️"],1:["Poco nuvoloso","🌤️"],2:["Parz. nuvoloso","⛅"],3:["Coperto","☁️"],
+    45:["Nebbia","🌫️"],48:["Nebbia gelata","🌫️"],51:["Pioviggine","🌦️"],53:["Pioviggine","🌦️"],55:["Pioviggine","🌦️"],
+    56:["Pioviggine gelata","🌧️"],57:["Pioviggine gelata","🌧️"],61:["Pioggia debole","🌧️"],63:["Pioggia","🌧️"],65:["Pioggia forte","🌧️"],
+    66:["Pioggia gelata","🌧️"],67:["Pioggia gelata","🌧️"],71:["Neve debole","🌨️"],73:["Neve","🌨️"],75:["Neve forte","❄️"],77:["Nevischio","🌨️"],
+    80:["Rovesci","🌦️"],81:["Rovesci","🌧️"],82:["Rovesci forti","⛈️"],85:["Rovesci di neve","🌨️"],86:["Rovesci di neve","🌨️"],
+    95:["Temporale","⛈️"],96:["Temporale+grandine","⛈️"],99:["Temporale+grandine","⛈️"]};
+  return m[code]||["—","❓"];
+}
+const mean = a=>a.length? a.reduce((x,y)=>x+y,0)/a.length : null;
+const std = a=>{if(a.length<2)return 0;const m=mean(a);return Math.sqrt(mean(a.map(x=>(x-m)**2)));};
+function circMean(degs){ // media vettoriale direzione vento
+  if(!degs.length) return null;
+  let x=0,y=0; degs.forEach(d=>{const r=d*Math.PI/180; x+=Math.cos(r); y+=Math.sin(r);});
+  let a=Math.atan2(y/degs.length,x/degs.length)*180/Math.PI; return (a+360)%360;
+}
+function mode(arr){const c={};let best=arr[0],bc=0;arr.forEach(v=>{c[v]=(c[v]||0)+1;if(c[v]>bc){bc=c[v];best=v;}});return +best;}
+
+// ---- Fetch ----
+async function geocode(name){
+  const u=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=6&language=it&format=json`;
+  const r=await fetch(u); const j=await r.json(); return j.results||[];
+}
+async function loadWeather(lat,lon){
+  // Ogni modello viene scaricato singolarmente: se uno non è disponibile
+  // (es. modello regionale fuori copertura) viene saltato senza bloccare gli altri.
+  const reqs = MODELS.map(async m=>{
+    const u=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+      +`&hourly=${HOURLY.join(",")}&daily=${DAILY.join(",")}`
+      +`&models=${m.id}&wind_speed_unit=kn&timezone=auto&forecast_days=7`;
+    try{ const r=await fetch(u); if(!r.ok) return null; const j=await r.json(); j._id=m.id; return j; }
+    catch(e){ return null; }
+  });
+  const results = await Promise.all(reqs);
+  const ok = results.filter(Boolean);
+  if(!ok.length) throw new Error("nessuna fonte raggiungibile");
+  // Unisce tutte le risposte costruendo chiavi suffissate _<id>.
+  // (a modello singolo Open-Meteo restituisce le chiavi senza suffisso)
+  const merged = {hourly:{}, daily:{}};
+  const pick=(obj,base,id)=> (obj[base]!==undefined?obj[base]:obj[`${base}_${id}`]);
+  ok.forEach(j=>{
+    const id = j._id;
+    if(j.hourly){
+      if(!merged.hourly.time) merged.hourly.time=j.hourly.time;
+      HOURLY.forEach(base=>{ const a=pick(j.hourly,base,id); if(a) merged.hourly[`${base}_${id}`]=a; });
+    }
+    if(j.daily){
+      if(!merged.daily.time) merged.daily.time=j.daily.time;
+      DAILY.forEach(base=>{ const a=pick(j.daily,base,id); if(a) merged.daily[`${base}_${id}`]=a; });
+    }
+  });
+  STATE.activeCount = ok.length;
+  return merged;
+}
+
+// ---- Mare (scala Douglas) ----
+function seaState(h){
+  if(h==null||isNaN(h)) return null;
+  if(h<0.10) return "Calmo";
+  if(h<0.50) return "Poco mosso";
+  if(h<1.25) return "Mosso";
+  if(h<2.50) return "Molto mosso";
+  if(h<4.0)  return "Agitato";
+  if(h<6.0)  return "Molto agitato";
+  if(h<9.0)  return "Grosso";
+  if(h<14.0) return "Molto grosso";
+  return "Tempestoso";
+}
+async function loadMarine(lat,lon){
+  const u=`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}`
+    +`&hourly=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_period`
+    +`&daily=wave_height_max,wave_direction_dominant,wave_period_max`
+    +`&timezone=auto&forecast_days=7`;
+  try{
+    const r=await fetch(u); if(!r.ok) return null; const j=await r.json();
+    if(j.hourly && j.hourly.wave_height && j.hourly.wave_height.some(v=>v!=null)) return j;
+    return null;
+  }catch(e){ return null; }
+}
+
+// Estrae per variabile l'array di ogni modello (chiavi con suffisso _<model>)
+function perModel(block, baseVar){
+  const out={};
+  STATE.enabled.forEach(id=>{
+    const k = block[`${baseVar}_${id}`];
+    if(k!==undefined && k!==null) out[id]=k;
+  });
+  return out;
+}
+// consenso per indice i su una variabile numerica
+function consensusAt(pm, i, circular=false){
+  const vals=[]; const by={};
+  for(const id in pm){const v=pm[id][i]; if(v!==null&&v!==undefined&&!Number.isNaN(v)){vals.push(v);by[id]=v;}}
+  if(!vals.length) return {v:null,vals:[],by:{},spread:0};
+  const v = circular? circMean(vals) : mean(vals);
+  return {v, vals, by, spread: circular?0:std(vals)};
+}
+
+function confidence(tempSpread, windSpread){
+  // soglie empiriche: temp °C, vento nodi
+  const score = tempSpread + windSpread*0.4;
+  if(score < 1.5) return ["Alta","b-high"];
+  if(score < 3.5) return ["Media","b-med"];
+  return ["Bassa","b-low"];
+}
+
+// ---- Render ----
+function render(){
+  const d=STATE.data; if(!d){return;}
+  const H=d.hourly, D=d.daily;
+  const tH=perModel(H,"temperature_2m");
+  const wsH=perModel(H,"wind_speed_10m");
+  const wdH=perModel(H,"wind_direction_10m");
+  const wgH=perModel(H,"wind_gusts_10m");
+  const ppH=perModel(H,"precipitation_probability");
+  const wcH=perModel(H,"weather_code");
+  const apH=perModel(H,"apparent_temperature");
+  const rhH=perModel(H,"relative_humidity_2m");
+  const prH=perModel(H,"precipitation");
+
+  const now=new Date();
+  let idxNow=0; for(let i=0;i<H.time.length;i++){ if(new Date(H.time[i])<=now) idxNow=i; else break; }
+
+  // ----- ADESSO -----
+  const cT=consensusAt(tH,idxNow), cWs=consensusAt(wsH,idxNow), cWd=consensusAt(wdH,idxNow,true),
+        cWg=consensusAt(wgH,idxNow), cAp=consensusAt(apH,idxNow), cRh=consensusAt(rhH,idxNow);
+  const cPr=consensusAt(prH,idxNow);
+  const sunrise=firstOf(D,"sunrise",0), sunset=firstOf(D,"sunset",0);
+  const codes=[]; for(const id in wcH){const v=wcH[id][idxNow]; if(v!=null)codes.push(v);}
+  const code=codes.length?mode(codes):0; const [cond,emo]=wmo(code);
+  const [cName,cClass]=confidence(cT.spread,cWs.spread);
+  const nModels=Object.keys(tH).length;
+
+  let html="";
+  html+=`<div class="card"><div class="now">
+    <div class="ic">${emo}</div>
+    <div>
+      <div class="temp">${cT.v!=null?Math.round(cT.v)+"°":"—"}</div>
+      <div class="cond">${cond} · percepita ${cAp.v!=null?Math.round(cAp.v)+"°":"—"}</div>
+      <div class="meta">
+        <div class="pill">Vento <b>${cWs.v!=null?Math.round(cWs.v):"—"} kn</b><span class="muted">${cWd.v!=null?fromTxt(cWd.v)+" "+windArrow(cWd.v):""}</span></div>
+        <div class="pill">Raffiche <b>${cWg.v!=null?Math.round(cWg.v):"—"} kn</b></div>
+        <div class="pill">Pioggia <b>${cPr.v!=null?cPr.v.toFixed(1)+" mm":"—"}</b><span class="muted">ultima ora</span></div>
+        <div class="pill">Umidità <b>${cRh.v!=null?Math.round(cRh.v)+"%":"—"}</b></div>
+        <div class="pill">☀️ Alba/Tram. <b>${hhmm(sunrise)} · ${hhmm(sunset)}</b></div>
+      </div>
+    </div>
+    <div class="conf">
+      <div class="badge ${cClass}">Affidabilità ${cName}</div>
+      <div class="sub" style="margin-top:8px">Consenso di tutte le fonti meteo · ${STATE.place}</div>
+      <div class="sub">Scarto temp ±${cT.spread.toFixed(1)}° · agg. ${now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>
+  </div></div>`;
+
+  html+=renderMarine();
+
+  // ----- ORARIO 48h -----
+  html+=`<div class="card"><h2 class="sec">Ora per ora (prossime 48h)</h2><div class="hours">`;
+  for(let i=idxNow;i<Math.min(idxNow+48,H.time.length);i++){
+    const t=new Date(H.time[i]);
+    const ct=consensusAt(tH,i), cw=consensusAt(wsH,i), cd=consensusAt(wdH,i,true);
+    const cc=[]; for(const id in wcH){const v=wcH[id][i];if(v!=null)cc.push(v);} const cod=cc.length?mode(cc):0;
+    const pp=consensusAt(ppH,i);
+    const pr=consensusAt(prH,i);
+    const hr=t.getHours();
+    const lbl = i===idxNow?"Ora":(hr===0?t.toLocaleDateString('it-IT',{weekday:'short'}):hr+":00");
+    html+=`<div class="hcell">
+      <div class="h">${lbl}</div>
+      <div class="e">${wmo(cod)[1]}</div>
+      <div class="t">${ct.v!=null?Math.round(ct.v)+"°":"—"}</div>
+      <div class="rain">${pp.v!=null?Math.round(pp.v)+"%":"&nbsp;"}${pr.v>0?" · "+pr.v.toFixed(1)+"mm":""}</div>
+      <div class="w">${cw.v!=null?Math.round(cw.v)+" kn":""} <span class="arrow">${cd.v!=null?windArrow(cd.v):""}</span></div>
+    </div>`;
+  }
+  html+=`</div></div>`;
+
+  // ----- 7 GIORNI -----
+  const tmax=perModel(D,"temperature_2m_max"), tmin=perModel(D,"temperature_2m_min"),
+        dwc=perModel(D,"weather_code"), dws=perModel(D,"wind_speed_10m_max"),
+        dwg=perModel(D,"wind_gusts_10m_max"), dwd=perModel(D,"wind_direction_10m_dominant"),
+        dpp=perModel(D,"precipitation_probability_max"), dps=perModel(D,"precipitation_sum");
+
+  html+=`<div class="card"><h2 class="sec">7 giorni · stima di consenso</h2><div class="days">`;
+  for(let i=0;i<D.time.length;i++){
+    const dt=new Date(D.time[i]+"T12:00");
+    const cmax=consensusAt(tmax,i), cmin=consensusAt(tmin,i), cws=consensusAt(dws,i),
+          cwg=consensusAt(dwg,i), cwd=consensusAt(dwd,i,true), cpp=consensusAt(dpp,i), cps=consensusAt(dps,i);
+    const sr=firstOf(D,"sunrise",i), ss=firstOf(D,"sunset",i);
+    const cc=[];for(const id in dwc){const v=dwc[id][i];if(v!=null)cc.push(v);} const cod=cc.length?mode(cc):0;
+    const [cn,cl]=confidence((cmax.spread+cmin.spread)/2, cws.spread);
+    const dn = i===0?"Oggi":(i===1?"Domani":dt.toLocaleDateString('it-IT',{weekday:'long'}));
+    html+=`<div class="day ${i===STATE.selDay?'active':''}" data-day="${i}">
+      <div><div class="dn">${dn}</div><div class="dd">${dt.toLocaleDateString('it-IT',{day:'numeric',month:'short'})}</div>
+        <span class="badge ${cl}" style="font-size:10px;padding:2px 8px;margin-top:4px">${cn}</span></div>
+      <div class="de">${wmo(cod)[1]}</div>
+      <div class="range"><span class="tmin">${cmin.v!=null?Math.round(cmin.v)+"°":"—"}</span>
+        <div class="bar"></div><span class="tmax">${cmax.v!=null?Math.round(cmax.v)+"°":"—"}</span></div>
+      <div class="wind">vento <b>${cws.v!=null?Math.round(cws.v):"—"} kn</b> ${cwd.v!=null?windArrow(cwd.v)+" "+fromTxt(cwd.v):""}<br>
+        <span class="muted">raffiche ${cwg.v!=null?Math.round(cwg.v):"—"} kn · pioggia ${cpp.v!=null?Math.round(cpp.v)+"%":"—"}${cps.v>0?" ("+cps.v.toFixed(1)+"mm)":""} · ☀️ ${hhmm(sr)}-${hhmm(ss)}</span></div>
+    </div>`;
+  }
+  html+=`</div></div>`;
+
+  // ----- ORA PER ORA DEL GIORNO SELEZIONATO -----
+  html+=renderDayHours(H,tH,wsH,wdH,ppH,prH,wcH,idxNow);
+
+  // ----- CONFRONTO MODELLI (giorno selezionato) -----
+  html+=renderCompare(D,tmax,tmin,dws,dwd,dpp);
+
+  $("#content").innerHTML=html;
+  bindDays();
+}
+
+function windArrow(deg){
+  // freccia che indica la direzione VERSO cui soffia (deg = da dove viene → +180)
+  const to=(deg+180)%360;
+  const arrows=["↑","↗","→","↘","↓","↙","←","↖"];
+  return `<span class="arrow" title="vento ${fromTxt(deg)}" style="display:inline-block;transform:rotate(${to}deg)">↑</span>`;
+}
+
+function renderDayHours(H,tH,wsH,wdH,ppH,prH,wcH,idxNow){
+  const date=STATE.data.daily.time[STATE.selDay];
+  const dt=new Date(date+"T12:00");
+  const dn=STATE.selDay===0?"Oggi":(STATE.selDay===1?"Domani":dt.toLocaleDateString('it-IT',{weekday:'long'}));
+  let idxs=[];
+  for(let i=0;i<H.time.length;i++){ if(H.time[i].slice(0,10)===date) idxs.push(i); }
+  if(STATE.selDay===0) idxs=idxs.filter(i=>i>=idxNow);
+  let h=`<div class="card" id="dayhours"><h2 class="sec">🕐 Ora per ora · ${dn} ${dt.toLocaleDateString('it-IT',{day:'numeric',month:'short'})}</h2><div class="hours">`;
+  if(!idxs.length){ h+=`<div class="muted">Dati orari non disponibili per questo giorno.</div>`; }
+  idxs.forEach(i=>{
+    const t=new Date(H.time[i]);
+    const ct=consensusAt(tH,i),cw=consensusAt(wsH,i),cd=consensusAt(wdH,i,true),pp=consensusAt(ppH,i),pr=consensusAt(prH,i);
+    const cc=[];for(const id in wcH){const v=wcH[id][i];if(v!=null)cc.push(v);}const cod=cc.length?mode(cc):0;
+    h+=`<div class="hcell">
+      <div class="h">${t.getHours()}:00</div>
+      <div class="e">${wmo(cod)[1]}</div>
+      <div class="t">${ct.v!=null?Math.round(ct.v)+"°":"—"}</div>
+      <div class="rain">${pp.v!=null?Math.round(pp.v)+"%":"&nbsp;"}${pr.v>0?" · "+pr.v.toFixed(1)+"mm":""}</div>
+      <div class="w">${cw.v!=null?Math.round(cw.v)+" kn":""} ${cd.v!=null?windArrow(cd.v):""}</div>
+    </div>`;
+  });
+  h+=`</div></div>`;
+  return h;
+}
+
+function renderMarine(){
+  const M=STATE.marine; if(!M||!M.hourly) return "";
+  const H=M.hourly;
+  const now=new Date();
+  let i=0; for(let k=0;k<H.time.length;k++){ if(new Date(H.time[k])<=now) i=k; else break; }
+  const wh=H.wave_height?H.wave_height[i]:null;
+  const wd=H.wave_direction?H.wave_direction[i]:null;
+  const wp=H.wave_period?H.wave_period[i]:null;
+  const sh=H.swell_wave_height?H.swell_wave_height[i]:null;
+  const st=seaState(wh);
+  if(st==null) return "";
+  let h=`<div class="card"><h2 class="sec">🌊 Condizioni marine</h2>
+    <div class="now" style="gap:16px">
+      <div class="ic">🌊</div>
+      <div>
+        <div class="temp" style="font-size:34px">${st}</div>
+        <div class="cond">Onda significativa ${wh!=null?wh.toFixed(1)+" m":"—"}</div>
+        <div class="meta">
+          <div class="pill">Onde <b>${wh!=null?wh.toFixed(1)+" m":"—"}</b>${wd!=null?'<span class="muted">'+fromTxt(wd)+' '+windArrow(wd)+'</span>':''}</div>
+          <div class="pill">Periodo <b>${wp!=null?Math.round(wp)+" s":"—"}</b></div>
+          ${sh!=null?`<div class="pill">Onda lunga <b>${sh.toFixed(1)} m</b></div>`:''}
+        </div>
+      </div>
+    </div>`;
+  if(M.daily && M.daily.time){
+    const D=M.daily;
+    h+=`<div class="hours" style="margin-top:14px">`;
+    for(let d=0;d<D.time.length;d++){
+      const hmax=D.wave_height_max?D.wave_height_max[d]:null;
+      const dir=D.wave_direction_dominant?D.wave_direction_dominant[d]:null;
+      const ss=seaState(hmax);
+      const dt=new Date(D.time[d]+"T12:00");
+      const dn=d===0?"Oggi":dt.toLocaleDateString('it-IT',{weekday:'short'});
+      h+=`<div class="hcell" style="width:104px">
+        <div class="h">${dn}</div>
+        <div class="e">🌊 ${dir!=null?windArrow(dir):""}</div>
+        <div class="t" style="font-size:15px">${hmax!=null?hmax.toFixed(1)+" m":"—"}</div>
+        <div class="rain" style="color:var(--mut)">${ss||""}</div>
+      </div>`;
+    }
+    h+=`</div>`;
+  }
+  h+=`<div class="sub" style="margin-top:8px">Stato del mare secondo la scala Douglas, dall'altezza dell'onda significativa.</div></div>`;
+  return h;
+}
+
+function renderCompare(D,tmax,tmin,dws,dwd,dpp){
+  const i=STATE.selDay;
+  const dt=new Date(D.time[i]+"T12:00");
+  const cmax=consensusAt(tmax,i),cmin=consensusAt(tmin,i),cws=consensusAt(dws,i),cwd=consensusAt(dwd,i,true),cpp=consensusAt(dpp,i);
+  const rng=a=>a.length?`${Math.round(Math.min(...a))}°–${Math.round(Math.max(...a))}°`:"—";
+  const [cn,cl]=confidence((cmax.spread+cmin.spread)/2,cws.spread);
+  const lbl=i===0?"Oggi":dt.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'short'});
+  let h=`<div class="card"><h2 class="sec">Dettaglio consenso · ${lbl}</h2>
+    <table class="cmp"><tbody>
+    <tr><td>Temperatura max</td><td class="cons">${cmax.v!=null?Math.round(cmax.v)+"°":"—"}</td><td class="muted">scarto fonti ${rng(cmax.vals)}</td></tr>
+    <tr><td>Temperatura min</td><td class="cons">${cmin.v!=null?Math.round(cmin.v)+"°":"—"}</td><td class="muted">scarto fonti ${rng(cmin.vals)}</td></tr>
+    <tr><td>Vento max</td><td class="cons">${cws.v!=null?Math.round(cws.v)+" kn":"—"}</td><td class="muted">${cws.vals.length?Math.round(Math.min(...cws.vals))+"–"+Math.round(Math.max(...cws.vals))+" kn":"—"}</td></tr>
+    <tr><td>Direzione vento</td><td class="cons">${cwd.v!=null?compass(cwd.v)+" "+windArrow(cwd.v):"—"}</td><td class="muted">${cwd.v!=null?fromTxt(cwd.v):""}</td></tr>
+    <tr><td>Pioggia (prob.)</td><td class="cons">${cpp.v!=null?Math.round(cpp.v)+"%":"—"}</td><td class="muted"></td></tr>
+    <tr><td>Concordanza fonti</td><td class="cons"><span class="badge ${cl}" style="font-size:11px;padding:3px 9px">${cn}</span></td><td class="muted">${cmax.vals.length} fonti elaborate</td></tr>
+    </tbody></table>
+    <div class="sub" style="margin-top:8px">Il valore mostrato è il consenso di tutte le fonti meteo mondiali. Più lo "scarto fonti" è stretto, più la previsione è affidabile. Tocca un giorno qui sopra per cambiarlo.</div></div>`;
+  return h;
+}
+function bindDays(){
+  document.querySelectorAll('.day').forEach(el=>{
+    el.addEventListener('click',()=>{
+      STATE.selDay=+el.getAttribute('data-day');
+      render();
+      const dh=document.getElementById('dayhours');
+      if(dh) dh.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  });
+}
+
+// ---- Flusso ----
+async function refresh(){
+  $("#content").innerHTML=`<div class="loader"><div class="spin"></div>Confronto dei modelli meteo in corso…</div>`;
+  try{
+    STATE.data=await loadWeather(STATE.lat,STATE.lon);
+    STATE.marine=await loadMarine(STATE.lat,STATE.lon);
+    render();
+  }catch(e){
+    $("#content").innerHTML=`<div class="err">Impossibile caricare i dati: ${e.message}.<br>Controlla la connessione e riprova.</div>`;
+  }
+}
+let MAP=null, MARK=null;
+function showMap(lat,lon,name){
+  const el=document.getElementById('map');
+  if(!el || typeof L==='undefined') return;
+  el.style.display='block';
+  if(!MAP){
+    MAP=L.map(el,{zoomControl:true,attributionControl:true}).setView([lat,lon],11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(MAP);
+  } else { MAP.setView([lat,lon],11); }
+  if(MARK) MARK.remove();
+  MARK=L.circleMarker([lat,lon],{radius:9,color:'#0a4bff',weight:3,fillColor:'#0a4bff',fillOpacity:.55}).addTo(MAP);
+  MARK.bindPopup(name||'Qui');
+  setTimeout(()=>MAP.invalidateSize(),150);
+}
+function setPlace(lat,lon,name){
+  STATE.lat=lat;STATE.lon=lon;STATE.place=name;STATE.selDay=0;
+  try{localStorage.setItem('mp_last',JSON.stringify({lat,lon,name}));}catch(e){}
+  showMap(lat,lon,name);
+  refresh();
+}
+
+// GPS
+$("#geoBtn").addEventListener('click',()=>{
+  if(!navigator.geolocation){alert("Geolocalizzazione non disponibile");return;}
+  $("#content").innerHTML=`<div class="loader"><div class="spin"></div>Rilevamento posizione…</div>`;
+  navigator.geolocation.getCurrentPosition(async p=>{
+    const {latitude,longitude}=p.coords;
+    let nm="La mia posizione";
+    setPlace(latitude,longitude,nm);
+  },err=>{
+    $("#content").innerHTML=`<div class="err">Posizione non concessa. Cerca una città nella barra in alto.</div>`;
+  },{enableHighAccuracy:true,timeout:10000});
+});
+
+// Preferiti (accesso rapido)
+document.querySelectorAll('#favs label').forEach(el=>{
+  el.style.cursor='pointer';
+  el.addEventListener('click',()=>{
+    setPlace(+el.getAttribute('data-lat'),+el.getAttribute('data-lon'),el.getAttribute('data-nm'));
+  });
+});
+
+// Ricerca città
+let sugTimer=null;
+$("#q").addEventListener('input',()=>{
+  clearTimeout(sugTimer);
+  const v=$("#q").value.trim();
+  if(v.length<2){$("#sug").style.display="none";return;}
+  sugTimer=setTimeout(async()=>{
+    try{
+      const res=await geocode(v);
+      if(!res.length){$("#sug").style.display="none";return;}
+      $("#sug").innerHTML=res.map(r=>{
+        const lbl=[r.name,r.admin1,r.country].filter(Boolean).join(", ");
+        return `<div data-lat="${r.latitude}" data-lon="${r.longitude}" data-nm="${lbl.replace(/"/g,'')}">${lbl}</div>`;
+      }).join("");
+      $("#sug").style.display="block";
+      document.querySelectorAll('#sug div').forEach(d=>{
+        d.addEventListener('click',()=>{
+          $("#sug").style.display="none";$("#q").value=d.getAttribute('data-nm');
+          setPlace(+d.getAttribute('data-lat'),+d.getAttribute('data-lon'),d.getAttribute('data-nm'));
+        });
+      });
+    }catch(e){}
+  },280);
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.suggest'))$("#sug").style.display="none";});
+
+// Avvio app: ultima località o GPS o default Roma (chiamato dopo lo sblocco)
+function startApp(){
+  let last=null; try{last=JSON.parse(localStorage.getItem('mp_last'));}catch(e){}
+  if(last&&last.lat){setPlace(last.lat,last.lon,last.name);return;}
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      p=>setPlace(p.coords.latitude,p.coords.longitude,"La mia posizione"),
+      ()=>setPlace(41.9028,12.4964,"Roma, Italia"),
+      {timeout:8000});
+  } else setPlace(41.9028,12.4964,"Roma, Italia");
+}
+
+// ====== BLOCCO PASSWORD ======
+const PASS_HASH="2fdf5a81c014514a9f3f26d6f6ca84ffebec18807b0612c07e27dc2790588e53";
+function sha256js(ascii){
+  function rightRotate(value,amount){return (value>>>amount)|(value<<(32-amount));}
+  var mathPow=Math.pow;var maxWord=mathPow(2,32);var result='';
+  var words=[];var asciiBitLength=ascii.length*8;
+  var hash=sha256js.h=sha256js.h||[];var k=sha256js.k=sha256js.k||[];var primeCounter=k.length;
+  var isComposite={};
+  for(var candidate=2;primeCounter<64;candidate++){
+    if(!isComposite[candidate]){
+      for(var i=0;i<313;i+=candidate){isComposite[i]=candidate;}
+      hash[primeCounter]=(mathPow(candidate,.5)*maxWord)|0;
+      k[primeCounter++]=(mathPow(candidate,1/3)*maxWord)|0;
+    }
+  }
+  ascii+='\x80';
+  while(ascii.length%64-56)ascii+='\x00';
+  for(i=0;i<ascii.length;i++){
+    var j=ascii.charCodeAt(i);
+    if(j>>8)return;
+    words[i>>2]|=j<<((3-i)%4)*8;
+  }
+  words[words.length]=((asciiBitLength/maxWord)|0);
+  words[words.length]=(asciiBitLength);
+  for(j=0;j<words.length;){
+    var w=words.slice(j,j+=16);
+    var oldHash=hash;
+    hash=hash.slice(0,8);
+    for(i=0;i<64;i++){
+      var w15=w[i-15],w2=w[i-2];
+      var a=hash[0],e=hash[4];
+      var temp1=hash[7]
+        +(rightRotate(e,6)^rightRotate(e,11)^rightRotate(e,25))
+        +((e&hash[5])^((~e)&hash[6]))
+        +k[i]
+        +(w[i]=i<16?w[i]:(
+            w[i-16]
+            +(rightRotate(w15,7)^rightRotate(w15,18)^(w15>>>3))
+            +w[i-7]
+            +(rightRotate(w2,17)^rightRotate(w2,19)^(w2>>>10))
+          )|0
+        );
+      var temp2=(rightRotate(a,2)^rightRotate(a,13)^rightRotate(a,22))
+        +((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
+      hash=[(temp1+temp2)|0].concat(hash);
+      hash[4]=(hash[4]+temp1)|0;
+    }
+    for(i=0;i<8;i++){hash[i]=(hash[i]+oldHash[i])|0;}
+  }
+  for(i=0;i<8;i++){
+    for(j=3;j+1;j--){
+      var b=(hash[i]>>(j*8))&255;
+      result+=((b<16)?0:'')+b.toString(16);
+    }
+  }
+  return result;
+}
+function unlock(){ const l=document.getElementById('lock'); if(l) l.style.display='none'; startApp(); }
+function tryPass(){
+  const inp=document.getElementById('pw'), err=document.getElementById('pwErr');
+  const val=(inp.value||'').trim().toUpperCase();
+  if(sha256js(val)===PASS_HASH){
+    const rem=document.getElementById('rem');
+    if(rem&&rem.checked){ try{localStorage.setItem('mp_remember','ok');}catch(e){} }
+    unlock();
+  }
+  else { err.textContent='Password errata'; inp.value=''; inp.focus(); }
+}
+(function lockInit(){
+  let ok=false; try{ok=localStorage.getItem('mp_remember')==='ok';}catch(e){}
+  if(ok){ unlock(); return; }
+  const btn=document.getElementById('pwBtn'), inp=document.getElementById('pw');
+  if(btn) btn.addEventListener('click',tryPass);
+  if(inp){ inp.addEventListener('keydown',e=>{ if(e.key==='Enter') tryPass(); }); inp.focus(); }
+})();
+</script>
+</body>
+</html>
