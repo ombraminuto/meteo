@@ -83,13 +83,13 @@
   .b-med{background:rgba(255,207,92,.16);color:var(--warn);border:1px solid rgba(255,207,92,.4)}
   .b-low{background:rgba(255,122,122,.16);color:var(--bad);border:1px solid rgba(255,122,122,.4)}
   h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);margin:4px 2px 12px}
-  .daychips{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:6px;scrollbar-width:none}
+  .daychips{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px;margin-bottom:6px;scrollbar-width:none}
   .daychips::-webkit-scrollbar{display:none}
   .dchip{flex:0 0 auto;padding:8px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);font-size:13px;cursor:pointer;text-align:center}
   .dchip.active{border-color:var(--acc);background:var(--card2)}
   .dchip small{display:block;color:var(--mut);font-size:11px}
-  .hours{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
-  .hcell{flex:0 0 auto;width:84px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:10px 8px;text-align:center}
+  .hours{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;padding-bottom:8px;scrollbar-width:thin;align-items:stretch;touch-action:pan-x}
+  .hcell{flex:0 0 auto;width:86px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:10px 8px;text-align:center;display:flex;flex-direction:column}
   .hcell .h{font-size:12px;color:var(--mut)}
   .hcell .e{font-size:24px;margin:4px 0}
   .hcell .t{font-size:18px;font-weight:700}
@@ -122,6 +122,9 @@
   .moon{display:flex;align-items:center;gap:14px}
   .moon .mi{font-size:42px;line-height:1}
   #map{height:360px;width:100%;border-radius:18px;border:1px solid var(--line);box-shadow:var(--shadow)}
+  .radarctl{background:rgba(11,18,32,.85);border:1px solid var(--line);border-radius:10px;padding:4px 8px;color:var(--txt);font-size:12px;display:flex;align-items:center;gap:8px}
+  .radarctl button{background:var(--acc);color:#06121f;border:0;border-radius:8px;padding:2px 8px;cursor:pointer;font-size:12px;width:auto}
+  .radarctl input[type=range]{width:88px;accent-color:var(--acc);margin:0}
   .leaflet-container{background:#0b1220;font-family:inherit}
   .lock{position:fixed;inset:0;background:radial-gradient(1200px 700px at 50% 0,#1b2a4d,#0b1220);display:flex;align-items:center;justify-content:center;z-index:2000;padding:20px}
   .lockbox{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:30px 26px;max-width:360px;width:100%;text-align:center;box-shadow:var(--shadow)}
@@ -187,7 +190,7 @@
 
   <div id="bottom"></div>
 
-  <div class="foot">Dati Open-Meteo · consenso di tutte le fonti meteo mondiali. Mappa © OpenStreetMap.</div>
+  <div class="foot">© 2026 Scandi · Tutti i diritti riservati.<br>Dati Open-Meteo · Radar RainViewer · Mappa © OpenStreetMap.</div>
 </div>
 
 <script>
@@ -471,16 +474,70 @@ function buildMarine(){
 }
 
 // ---- Mappa ----
-let MAP=null,MARK=null;
+let MAP=null,MARK=null,RADAR=null,SAT=null,radarDone=false;
+let radarFrames=[],radarIdx=0,radarTimer=null,radarHost='',radarCtlEl=null;
 function showMap(){
   const el=$("#map"); if(!el||typeof L==='undefined') return;
   el.style.display='block';
-  if(!MAP){ MAP=L.map(el,{zoomControl:true}).setView([STATE.lat,STATE.lon],11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(MAP); }
-  else MAP.setView([STATE.lat,STATE.lon],11);
+  if(!MAP){ MAP=L.map(el,{zoomControl:true,attributionControl:false}).setView([STATE.lat,STATE.lon],8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(MAP);
+    setupWeatherLayers(); }
+  else MAP.setView([STATE.lat,STATE.lon],8);
   if(MARK) MARK.remove();
-  MARK=L.circleMarker([STATE.lat,STATE.lon],{radius:9,color:'#0a4bff',weight:3,fillColor:'#0a4bff',fillOpacity:.55}).addTo(MAP).bindPopup(STATE.place||'Qui');
+  MARK=L.circleMarker([STATE.lat,STATE.lon],{radius:8,color:'#0a4bff',weight:3,fillColor:'#0a4bff',fillOpacity:.55}).addTo(MAP).bindPopup(STATE.place||'Qui');
   setTimeout(()=>MAP.invalidateSize(),150);
+}
+function radarFrameUrl(i){ return `${radarHost}${radarFrames[i].path}/256/{z}/{x}/{y}/4/1_1.png`; }
+function radarUpdateLabel(){
+  const el=document.getElementById('radarTime'); if(!el||!radarFrames.length) return;
+  const fr=radarFrames[radarIdx]; const t=new Date(fr.time*1000);
+  el.textContent=(/nowcast/.test(fr.path)?'previsione ':'')+t.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+}
+function radarSet(i){
+  if(!radarFrames.length) return;
+  radarIdx=((i%radarFrames.length)+radarFrames.length)%radarFrames.length;
+  if(RADAR) RADAR.setUrl(radarFrameUrl(radarIdx));
+  const rg=document.getElementById('radarRange'); if(rg) rg.value=radarIdx;
+  radarUpdateLabel();
+}
+function radarStep(){ radarSet(radarIdx+1); }
+function radarToggle(){
+  const b=document.getElementById('radarPlay');
+  if(radarTimer){ clearInterval(radarTimer); radarTimer=null; if(b)b.textContent='▶'; }
+  else { radarTimer=setInterval(radarStep,600); if(b)b.textContent='⏸'; }
+}
+async function setupWeatherLayers(){
+  if(radarDone||!MAP) return; radarDone=true;
+  try{
+    const r=await fetch('https://api.rainviewer.com/public/weather-maps.json'); const j=await r.json();
+    radarHost=j.host;
+    const past=(j.radar&&j.radar.past)?j.radar.past:[];
+    const now=(j.radar&&j.radar.nowcast)?j.radar.nowcast:[];
+    radarFrames=[...past,...now];
+    const overlays={};
+    if(radarFrames.length){
+      radarIdx=past.length?past.length-1:0;
+      RADAR=L.tileLayer(radarFrameUrl(radarIdx),{opacity:0.62,zIndex:5,maxNativeZoom:7,maxZoom:19}); RADAR.addTo(MAP);
+      overlays['🌧️ Pioggia (radar)']=RADAR;
+      const C=L.control({position:'bottomleft'});
+      C.onAdd=function(){ const d=L.DomUtil.create('div','radarctl'); radarCtlEl=d;
+        d.innerHTML=`<button id="radarPrev" type="button" title="Indietro">⏮</button><button id="radarPlay" type="button">▶</button><button id="radarNext" type="button" title="Avanti">⏭</button><input type="range" id="radarRange" min="0" max="${radarFrames.length-1}" value="${radarIdx}"><span id="radarTime"></span>`;
+        L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d); return d; };
+      C.addTo(MAP);
+      setTimeout(()=>{
+        const p=document.getElementById('radarPlay'); if(p) p.addEventListener('click',radarToggle);
+        const pv=document.getElementById('radarPrev'); if(pv) pv.addEventListener('click',()=>{ if(radarTimer)radarToggle(); radarSet(radarIdx-1); });
+        const nx=document.getElementById('radarNext'); if(nx) nx.addEventListener('click',()=>{ if(radarTimer)radarToggle(); radarSet(radarIdx+1); });
+        const rg=document.getElementById('radarRange'); if(rg) rg.addEventListener('input',()=>{ if(radarTimer)radarToggle(); radarSet(+rg.value); });
+        radarUpdateLabel();
+      },60);
+      MAP.on('overlayremove',e=>{ if(e.layer===RADAR){ if(radarTimer)radarToggle(); if(radarCtlEl) radarCtlEl.style.display='none'; } });
+      MAP.on('overlayadd',e=>{ if(e.layer===RADAR){ if(radarCtlEl) radarCtlEl.style.display=''; } });
+    }
+    const sat=(j.satellite&&j.satellite.infrared)?j.satellite.infrared:[];
+    if(sat.length){ const s=sat[sat.length-1]; SAT=L.tileLayer(`${j.host}${s.path}/256/{z}/{x}/{y}/0/0_0.png`,{opacity:0.5,zIndex:4,maxNativeZoom:7,maxZoom:19}); overlays['☁️ Nuvole (satellite)']=SAT; }
+    if(Object.keys(overlays).length) L.control.layers(null,overlays,{collapsed:false,position:'topright'}).addTo(MAP);
+  }catch(e){}
 }
 
 // ---- Render contenuto ----
