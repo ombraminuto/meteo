@@ -25,7 +25,7 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:radial-gradient(1200px 700px at 70% -10%,#1b2a4d 0,var(--bg) 55%) fixed;
     color:var(--txt); min-height:100vh; padding:14px;
-    -webkit-font-smoothing:antialiased;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
   }
   .wrap{max-width:980px;margin:0 auto}
   .layout{display:flex;gap:16px;align-items:flex-start}
@@ -88,7 +88,7 @@
   .dchip{flex:0 0 auto;padding:8px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);font-size:13px;cursor:pointer;text-align:center}
   .dchip.active{border-color:var(--acc);background:var(--card2)}
   .dchip small{display:block;color:var(--mut);font-size:11px}
-  .hours{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;padding-bottom:8px;scrollbar-width:thin;align-items:stretch;touch-action:pan-x}
+  .hours{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;padding-bottom:8px;scrollbar-width:thin;align-items:stretch}
   .hcell{flex:0 0 auto;width:86px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:10px 8px;text-align:center;display:flex;flex-direction:column}
   .hcell .h{font-size:12px;color:var(--mut)}
   .hcell .e{font-size:24px;margin:4px 0}
@@ -152,18 +152,7 @@
 </style>
 </head>
 <body>
-<div class="lock" id="lock">
-  <div class="lockbox">
-    <svg class="lglogo" viewBox="0 0 100 100" width="58" height="58" xmlns="http://www.w3.org/2000/svg" aria-label="Rosa dei venti"><circle cx="50" cy="50" r="49" fill="#ffffff"/><polygon points="50,6 57,43 94,50 57,57 50,94 43,57 6,50 43,43" fill="#0a4bff"/><polygon points="50,43 74,26 57,50 74,74 50,57 26,74 43,50 26,26" fill="#6ea0ff"/><circle cx="50" cy="50" r="6" fill="#0a2fb0"/></svg>
-    <svg class="lglock" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10.5" rx="2.5"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>
-    <h2>Meteo Perfetto</h2>
-    <p>Inserisci la password per accedere</p>
-    <input type="password" id="pw" placeholder="Password" autocomplete="off" autocapitalize="characters">
-    <label class="rem"><input type="checkbox" id="rem"> Ricorda la password su questo dispositivo</label>
-    <button class="primary" id="pwBtn">Entra</button>
-    <div class="lockerr" id="pwErr"></div>
-  </div>
-</div>
+<!-- nessun blocco password -->
 
 <div class="wrap">
   <header class="app">
@@ -728,13 +717,8 @@ function tryPass(){
   if(sha256js(val)===PASS_HASH){ const rem=$("#rem"); if(rem&&rem.checked){ try{localStorage.setItem('mp_remember','ok');}catch(e){} } unlock(); }
   else { err.textContent='Password errata'; inp.value=''; inp.focus(); }
 }
-(function lockInit(){
-  let ok=false; try{ok=localStorage.getItem('mp_remember')==='ok';}catch(e){}
-  if(ok){ unlock(); return; }
-  const btn=$("#pwBtn"), inp=$("#pw");
-  if(btn) btn.addEventListener('click',tryPass);
-  if(inp){ inp.addEventListener('keydown',e=>{ if(e.key==='Enter') tryPass(); }); inp.focus(); }
-})();
+// Avvio diretto, senza password
+startApp();
 </script>
 </body>
 </html>
