@@ -31,7 +31,7 @@
   .layout{display:flex;gap:16px;align-items:flex-start}
   .main{flex:1;min-width:0}
   .side{flex:0 0 300px;position:sticky;top:8px}
-  header.app{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  header.app{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
   .brand{display:flex;align-items:center;gap:10px;min-width:0}
   .logo svg{display:block;border-radius:50%;box-shadow:0 4px 14px rgba(10,75,255,.35)}
   h1{font-size:18px;margin:0;font-weight:800;letter-spacing:.2px}
@@ -65,11 +65,11 @@
   .pname{font-weight:700;font-size:15px}
   .pinbtn{padding:5px 11px;font-size:12px;border-radius:999px}
   .pinned{font-size:12px;color:var(--warn)}
-  .tabs{display:flex;gap:6px;overflow-x:auto;position:sticky;top:0;background:rgba(11,18,32,.92);backdrop-filter:blur(6px);padding:8px 0;margin-bottom:12px;z-index:50;scrollbar-width:none}
+  .tabs{display:flex;gap:6px;overflow-x:auto;position:sticky;top:0;background:rgba(11,18,32,.92);backdrop-filter:blur(6px);padding:8px 0;margin-bottom:10px;z-index:50;scrollbar-width:none}
   .tabs::-webkit-scrollbar{display:none}
   .tab{flex:0 0 auto;padding:9px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--mut);font-size:14px;cursor:pointer;white-space:nowrap}
   .tab.active{background:linear-gradient(135deg,var(--acc),#2b8bd6);color:#06121f;border:0;font-weight:700}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);margin-bottom:12px}
   .now{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
   .now .ic{font-size:64px;line-height:1}
   .now .temp{font-size:54px;font-weight:800;line-height:1}
@@ -121,7 +121,7 @@
   .alert.ok{background:rgba(110,231,183,.1);border-color:rgba(110,231,183,.4);color:#bff3dd}
   .moon{display:flex;align-items:center;gap:14px}
   .moon .mi{font-size:42px;line-height:1}
-  #map{height:360px;width:100%;border-radius:18px;border:1px solid var(--line);box-shadow:var(--shadow)}
+  #map{height:300px;width:100%;border-radius:18px;border:1px solid var(--line);box-shadow:var(--shadow)}
   .radarctl{background:rgba(11,18,32,.85);border:1px solid var(--line);border-radius:10px;padding:4px 8px;color:var(--txt);font-size:12px;display:flex;align-items:center;gap:8px}
   .radarctl button{background:var(--acc);color:#06121f;border:0;border-radius:8px;padding:2px 8px;cursor:pointer;font-size:12px;width:auto}
   .radarctl input[type=range]{width:88px;accent-color:var(--acc);margin:0}
@@ -140,7 +140,7 @@
   @media(max-width:760px){
     .layout{flex-direction:column}
     .side{flex:0 0 auto;width:100%;position:static;order:-1}
-    #map{height:220px}
+    #map{height:180px}
   }
   @media(max-width:560px){
     .now .temp{font-size:46px}.now .ic{font-size:52px}
@@ -148,13 +148,19 @@
     .day{grid-template-columns:92px 38px 1fr}
     .day .wind{grid-column:1/-1;text-align:left;border-top:1px solid var(--line);padding-top:8px;margin-top:2px;min-width:0}
     .searchbar{justify-content:flex-start}
-    .hours{flex-direction:column;overflow:visible}
+    .hours{flex-direction:column;overflow:visible;touch-action:auto}
     .hcell{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;gap:2px 12px;text-align:left;padding:12px 14px}
     .hcell .h{min-width:52px;font-size:14px;font-weight:700;color:var(--txt)}
     .hcell .e{font-size:24px;margin:0}
     .hcell .t{min-width:44px}
     .hcell .rain{min-height:0}
     .hcell .w,.hcell .sea,.hcell .tide,.hcell .sun{margin-top:0}
+    header.app{margin-bottom:8px}
+    .bar{margin-bottom:6px}
+    .placeline{margin-bottom:6px}
+    .tabs{margin-bottom:8px}
+    .daychips{margin-bottom:2px}
+    .card{margin-bottom:10px}
   }
 </style>
 </head>
