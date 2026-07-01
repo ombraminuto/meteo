@@ -148,6 +148,13 @@
     .day{grid-template-columns:92px 38px 1fr}
     .day .wind{grid-column:1/-1;text-align:left;border-top:1px solid var(--line);padding-top:8px;margin-top:2px;min-width:0}
     .searchbar{justify-content:flex-start}
+    .hours{flex-direction:column;overflow:visible}
+    .hcell{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;gap:2px 12px;text-align:left;padding:12px 14px}
+    .hcell .h{min-width:52px;font-size:14px;font-weight:700;color:var(--txt)}
+    .hcell .e{font-size:24px;margin:0}
+    .hcell .t{min-width:44px}
+    .hcell .rain{min-height:0}
+    .hcell .w,.hcell .sea,.hcell .tide,.hcell .sun{margin-top:0}
   }
 </style>
 </head>
