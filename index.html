@@ -216,7 +216,7 @@ const DEFAULT_FAVS=[
   {name:"Bologna",lat:44.4949,lon:11.3426}
 ];
 
-let STATE = {lat:null,lon:null,place:"",enabled:new Set(MODELS.map(m=>m.id)),data:null,marine:null,selDay:0,tab:"adesso",favs:[],recent:[]};
+let STATE = {lat:null,lon:null,place:"",enabled:new Set(MODELS.map(m=>m.id)),data:null,marine:null,selDay:0,tab:"adesso",favs:[],recent:[],geo:null};
 
 // ---- Util ----
 const $ = s=>document.querySelector(s);
@@ -600,7 +600,8 @@ function renderBottom(){
                 : `<div class="alert ok">✅ Nessun avviso meteo rilevante nelle prossime 24 ore</div>`;
   h+=`<div class="moon" style="margin-top:12px"><div class="mi">${m.emoji}</div>
     <div><b>${m.name}</b> <span class="muted">(${mdn})</span><div class="sub">Illuminazione ${m.illum}% · giorno ${m.age} del ciclo lunare</div></div></div>`;
-  h+=`<div class="sub" style="margin-top:12px">Gli avvisi sono calcolati automaticamente dai dati di previsione. Per le <b>allerte ufficiali</b> della Protezione Civile (Emilia-Romagna) consulta <a href="https://allertameteo.regione.emilia-romagna.it/" target="_blank" rel="noopener" style="color:var(--acc)">allertameteo.regione.emilia-romagna.it</a>.</div></div>`;
+  const AL=alertLink();
+  h+=`<div class="sub" style="margin-top:12px">Gli avvisi sono calcolati automaticamente dai dati di previsione. Per le <b>${AL.label}</b> apri <a href="${AL.url}" target="_blank" rel="noopener" style="color:var(--acc)">il portale ufficiale</a>.</div></div>`;
   el.innerHTML=h;
 }
 
@@ -615,12 +616,26 @@ async function refresh(){
     $("#content").innerHTML=`<div class="err">Impossibile caricare i dati: ${e.message}.<br>Controlla la connessione e riprova.</div>`;
   }
 }
-function setPlace(lat,lon,name){
-  STATE.lat=lat;STATE.lon=lon;STATE.place=name;STATE.selDay=0;
-  try{localStorage.setItem('mp_last',JSON.stringify({lat,lon,name}));}catch(e){}
+function setPlace(lat,lon,name,geo){
+  STATE.lat=lat;STATE.lon=lon;STATE.place=name;STATE.selDay=0;STATE.geo=geo||null;
+  try{localStorage.setItem('mp_last',JSON.stringify({lat,lon,name,geo:STATE.geo}));}catch(e){}
   addRecent({lat,lon,name}); renderRecent(); renderPlaceline();
   if(MAP){ MAP.setView([lat,lon],11); }
   refresh();
+}
+function alertLink(){
+  const place=STATE.place||'', g=STATE.geo;
+  let q,label;
+  if(!g || (g.cc||'').toUpperCase()==='IT'){
+    const where=(g&&g.region)?g.region:place;
+    q='allerta meteo protezione civile '+where;
+    label='allerte ufficiali della Protezione Civile'+((g&&g.region)?' — '+g.region:'');
+  } else {
+    const where=[g.region,g.country].filter(Boolean).join(', ');
+    q='official weather warnings '+where;
+    label='allerte ufficiali per '+where;
+  }
+  return {url:'https://www.google.com/search?q='+encodeURIComponent(q),label};
 }
 
 // GPS
@@ -642,11 +657,11 @@ $("#q").addEventListener('input',()=>{
     try{
       const res=await geocode(v); if(!res.length){$("#sug").style.display="none";return;}
       $("#sug").innerHTML=res.map(r=>{const lbl=[r.name,r.admin1,r.country].filter(Boolean).join(", ");
-        return `<div data-lat="${r.latitude}" data-lon="${r.longitude}" data-nm="${lbl.replace(/"/g,'')}">${lbl}</div>`;}).join("");
+        return `<div data-lat="${r.latitude}" data-lon="${r.longitude}" data-nm="${lbl.replace(/"/g,'')}" data-cc="${r.country_code||''}" data-country="${(r.country||'').replace(/"/g,'')}" data-region="${(r.admin1||'').replace(/"/g,'')}">${lbl}</div>`;}).join("");
       $("#sug").style.display="block";
       document.querySelectorAll('#sug div').forEach(d=>d.addEventListener('click',()=>{
         $("#sug").style.display="none"; $("#q").value=d.dataset.nm;
-        setPlace(+d.dataset.lat,+d.dataset.lon,d.dataset.nm);
+        setPlace(+d.dataset.lat,+d.dataset.lon,d.dataset.nm,{cc:d.dataset.cc,country:d.dataset.country,region:d.dataset.region});
       }));
     }catch(e){}
   },280);
@@ -657,7 +672,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('.suggest'))$("#sug")
 function startApp(){
   loadFavs(); loadRecent(); renderFavs(); renderRecent();
   let last=null; try{last=JSON.parse(localStorage.getItem('mp_last'));}catch(e){}
-  if(last&&last.lat){ setPlace(last.lat,last.lon,last.name); return; }
+  if(last&&last.lat){ setPlace(last.lat,last.lon,last.name,last.geo); return; }
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(
       p=>setPlace(p.coords.latitude,p.coords.longitude,"La mia posizione"),
